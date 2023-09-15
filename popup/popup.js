@@ -22,6 +22,31 @@ document.addEventListener('DOMContentLoaded', function() {
             code: `(${changeSoundVolume.toString()})(${boostLevel});`
         });
     });
+
+    // Query for tabs with audio playing and list them in the popup
+    chrome.tabs.query({audible: true}, function(tabs) {
+        const tabsList = document.getElementById('tabsList');
+        for (let tab of tabs) {
+            const tabItem = document.createElement('div');
+            const tabIcon = document.createElement('img');
+            tabIcon.src = tab.favIconUrl;
+            tabIcon.className = 'tabIcon';
+            tabItem.appendChild(tabIcon);
+
+            const tabTitle = document.createElement('span');
+            tabTitle.textContent = tab.title;
+            tabItem.appendChild(tabTitle);
+
+            tabItem.className = 'tabItem';
+
+            // Add a click listener to focus on the clicked tab
+            tabItem.addEventListener('click', function() {
+                chrome.tabs.update(tab.id, { active: true });
+            });
+
+            tabsList.appendChild(tabItem);
+        }
+    });
 });
 
 function changeSoundVolume(boostLevel) {
