@@ -2,8 +2,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const volumeSlider = document.getElementById('volumeSlider');
     const volumeLabel = document.getElementById('volumeLabel');
 
-    // Load the current volume boost level from storage and set the slider value
-    chrome.storage.sync.get('boostLevel', function(data) {
+    // Load the current volume boost level from local storage and set the slider value
+    chrome.storage.local.get('boostLevel', function(data) {
         const boostLevel = data.boostLevel || 100;
         volumeSlider.value = boostLevel;
         volumeLabel.textContent = boostLevel + '%';
@@ -14,8 +14,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const boostLevel = volumeSlider.value;
         volumeLabel.textContent = boostLevel + '%';
 
-        // Save the boost level to storage
-        chrome.storage.sync.set({ boostLevel: boostLevel });
+        // Save the boost level to local storage
+        chrome.storage.local.set({ boostLevel: parseInt(boostLevel) }, function() {
+            if (chrome.runtime.lastError) {
+                console.error(chrome.runtime.lastError);
+            }
+        });
 
         // Inject the content script to adjust the volume on the current page
         chrome.tabs.executeScript({
