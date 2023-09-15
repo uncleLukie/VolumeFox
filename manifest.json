@@ -4,12 +4,18 @@
     "version": "1.0",
     "description": "A FOSS volume booster for your browser.",
     "icons": {
-        "16": "icons/icon16.png",
-        "48": "icons/icon48.png",
-        "128": "icons/icon128.png"
+        "16": "icons/volume16.png",
+        "20": "icons/volume20.png",
+        "24": "icons/volume20.png",
+        "32": "icons/volume32.png",
+        "48": "icons/volume48.png",
+        "64": "icons/volume64.png",
+        "128": "icons/volume128.png",
+        "256": "icons/volume256.png",
+        "512": "icons/volume512.png"
     },
     "browser_action": {
-        "default_icon": "icons/icon16.png",
+        "default_icon": "icons/volume16.png",
         "default_popup": "popup/popup.html",
         "default_title": "VolumeFox"
     },
