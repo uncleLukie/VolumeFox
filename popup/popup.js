@@ -59,7 +59,7 @@ function changeSoundVolume(boostLevel) {
             target.source.connect(target.creategain);
             target.creategain.connect(target.audiocontext.destination);
         }
-        const newVolume = boostLevel / 100;
+        const newVolume = Math.max(0, boostLevel / 100); // Ensure not set neg values
         if (newVolume !== target.creategain.gain.value) {
             target.creategain.gain.value = newVolume;
         }

@@ -13,7 +13,7 @@ body {
 h2 {
     margin-bottom: 0;
     color: #333;
-    align-self: center; /* Center the title vertically */
+    align-self: center;
 }
 
 label {
@@ -60,7 +60,7 @@ footer a:hover {
 
 .header {
     display: flex;
-    align-items: center;  /* Align items to the center */
+    align-items: center;
     flex-wrap: wrap;
 }
 
@@ -73,8 +73,8 @@ footer a:hover {
 .created-by {
     font-size: 12px;
     display: block;
-    margin-top: 10px; /* Increased padding on the top */
-    margin-bottom: 15px; /* Add padding at the bottom */
+    margin-top: 10px;
+    margin-bottom: 15px;
 }
 
 .created-by a {
