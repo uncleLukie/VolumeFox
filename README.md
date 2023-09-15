@@ -1,6 +1,8 @@
 # VolumeFox
  VolumeFox is a browser extension designed to give users precise control over the volume of media content in their browser. It allows users to boost or reduce the audio levels easily and provides a view of active tabs playing audio.
 
+ ![z7M4lawAfx](https://github.com/uncleLukie/VolumeFox/assets/22523084/f49492eb-a17c-4f26-8496-7a909fc72f9c)
+
 ## Technical Overview
 
 ### Architecture
@@ -26,5 +28,6 @@ VolumeFox primarily consists of the following components:
     - The extension uses `chrome.storage.local` to store the user's volume preference. This allows for fast retrieval of the volume level when the popup is reopened, ensuring a consistent user experience.
 
 ## Installation
+
 
 To install VolumeFox, you can [download it from the Firefox Add-ons store](https://addons.mozilla.org/en-US/firefox/addon/volumefox/) or package the extension files and load it manually into Firefox.
