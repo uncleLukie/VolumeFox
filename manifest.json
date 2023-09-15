@@ -40,5 +40,10 @@
                 "popup/popup.js"
             ]
         }
-    ]
+    ],
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "{2f733275-ed2b-462d-8abe-6543039d0a38}"
+        }
+    }
 }
