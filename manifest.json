@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "VolumeFox",
-    "version": "1.2",
+    "version": "1.3",
     "description": "A FOSS volume booster for your browser.",
     "icons": {
         "16": "icons/volume16.png",

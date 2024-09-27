@@ -1,6 +1,28 @@
 /* popup/popup.css */
+
+/* Theme Variables */
+:root {
+    --background-color: #ffffff;
+    --text-color: #000000;
+}
+
+.dark-theme {
+    --background-color: #121212;
+    --text-color: #ffffff;
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 10px; /* Added padding to the body */
+}
+
+/* Container and Header */
 .container {
-    padding: 10px;
+    /* Remove padding from the container since it's now on the body */
+    /* padding: 10px; */
 }
 
 .header {
@@ -18,10 +40,23 @@
     font-size: 12px;
 }
 
+/* Theme Switcher */
+.theme-switcher {
+    margin-left: auto;
+}
+
+.theme-switcher img {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+}
+
+/* Tabs List */
 #tabsList {
     margin-top: 10px;
 }
 
+/* Tab Item */
 .tabItem {
     display: flex;
     align-items: center;
@@ -37,13 +72,26 @@
 .tabTitle {
     flex-grow: 1;
     margin-right: 5px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
+/* Volume Slider and Label */
 .tabSlider {
     width: 100px;
     margin-right: 5px;
 }
 
 .tabVolumeLabel {
-    width: 50px;
+    width: 40px;
+    text-align: right;
+    margin-right: 5px;
+}
+
+/* Mute Button */
+.muteButton {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
 }

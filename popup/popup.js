@@ -1,5 +1,36 @@
 // popup/popup.js
 document.addEventListener('DOMContentLoaded', function() {
+    const themeToggle = document.getElementById('themeToggle');
+    let currentTheme = 'dark'; // Default to dark theme
+    const muteButtons = []; // Store references to mute buttons
+
+    // Load and apply the saved theme
+    chrome.storage.local.get('theme', function(data) {
+        currentTheme = data.theme || 'dark';
+        applyTheme(currentTheme);
+    });
+
+    // Theme Toggle Event Listener
+    themeToggle.addEventListener('click', function() {
+        chrome.storage.local.get('theme', function(data) {
+            currentTheme = data.theme === 'light' ? 'dark' : 'light';
+            chrome.storage.local.set({ 'theme': currentTheme }, function() {
+                applyTheme(currentTheme);
+                updateAllMuteButtons();
+            });
+        });
+    });
+
+    function applyTheme(theme) {
+        document.body.classList.remove('dark-theme', 'light-theme');
+        document.body.classList.add(theme + '-theme');
+        if (theme === 'dark') {
+            themeToggle.src = '../icons/sun.png';
+        } else {
+            themeToggle.src = '../icons/moon.png';
+        }
+    }
+
     // Query for tabs with audio playing and list them in the popup
     chrome.tabs.query({ audible: true }, function(tabs) {
         const tabsList = document.getElementById('tabsList');
@@ -20,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Create volume slider
             const tabSlider = document.createElement('input');
             tabSlider.type = 'range';
-            tabSlider.min = 1;
+            tabSlider.min = 0;
             tabSlider.max = 800;
             tabSlider.value = 100;
             tabSlider.className = 'tabSlider';
@@ -31,32 +62,90 @@ document.addEventListener('DOMContentLoaded', function() {
             tabVolumeLabel.className = 'tabVolumeLabel';
             tabItem.appendChild(tabVolumeLabel);
 
-            // Send message to content script to get current volume
+            // Create mute button
+            const muteButton = document.createElement('img');
+            muteButton.className = 'muteButton';
+            tabItem.appendChild(muteButton);
+
+            // Store mute button for theme updates
+            muteButtons.push({ muteButton: muteButton, tabId: tab.id });
+
+            // Send message to content script to get current volume and mute state
             chrome.tabs.sendMessage(tab.id, { type: 'getVolume' }, function(response) {
                 if (chrome.runtime.lastError) {
                     console.error(chrome.runtime.lastError.message);
-                    // Optionally, display an error message in the UI
                 } else if (response && response.volume != null) {
                     tabSlider.value = response.volume;
                     tabVolumeLabel.textContent = response.volume + '%';
                 }
             });
 
-            // Add event listener for slider change
-            tabSlider.addEventListener('input', function() {
-                const volume = tabSlider.value;
-                tabVolumeLabel.textContent = volume + '%';
-                chrome.tabs.sendMessage(tab.id, { type: 'setVolume', volume: parseInt(volume) });
+            chrome.tabs.sendMessage(tab.id, { type: 'getMute' }, function(response) {
+                if (response && response.muted != null) {
+                    updateMuteButtonIcon(muteButton, response.muted);
+                }
             });
 
-            // Prevent focus on tab when interacting with slider
+            // Add event listener for slider change
+            tabSlider.addEventListener('input', function() {
+                const volume = parseInt(tabSlider.value);
+                tabVolumeLabel.textContent = volume + '%';
+                chrome.tabs.sendMessage(tab.id, { type: 'setVolume', volume: volume }, function() {
+                    const isMuted = (volume === 0);
+                    updateMuteButtonIcon(muteButton, isMuted);
+                });
+            });
+
+            // Mute Button Event Listener
+            muteButton.addEventListener('click', function(event) {
+                event.stopPropagation();
+                chrome.tabs.sendMessage(tab.id, { type: 'getMute' }, function(response) {
+                    if (response && response.muted != null) {
+                        const newMuteState = !response.muted;
+                        chrome.tabs.sendMessage(tab.id, { type: 'setMute', mute: newMuteState }, function() {
+                            updateMuteButtonIcon(muteButton, newMuteState);
+                            if (newMuteState) {
+                                tabSlider.value = 0;
+                                tabVolumeLabel.textContent = '0%';
+                            } else {
+                                // Restore volume to last known level
+                                chrome.tabs.sendMessage(tab.id, { type: 'getVolume' }, function(response) {
+                                    if (response && response.volume != null) {
+                                        tabSlider.value = response.volume;
+                                        tabVolumeLabel.textContent = response.volume + '%';
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+
+            function updateMuteButtonIcon(muteButton, isMuted) {
+                let iconPrefix = '';
+                if (currentTheme === 'dark') {
+                    iconPrefix = 'light'; // Use light icons in dark theme
+                } else {
+                    iconPrefix = 'dark'; // Use dark icons in light theme
+                }
+                if (isMuted) {
+                    muteButton.src = `../icons/${iconPrefix}mute.png`;
+                } else {
+                    muteButton.src = `../icons/${iconPrefix}unmute.png`;
+                }
+            }
+
+            // Prevent focus on tab when interacting with controls
             tabSlider.addEventListener('click', function(event) {
                 event.stopPropagation();
             });
+            muteButton.addEventListener('click', function(event) {
+                event.stopPropagation();
+            });
 
-            // Optional: Focus on tab when clicked
+            // Focus on tab when clicking elsewhere on the tab item
             tabItem.addEventListener('click', function(event) {
-                if (event.target !== tabSlider) {
+                if (event.target !== tabSlider && event.target !== muteButton) {
                     chrome.tabs.update(tab.id, { active: true });
                 }
             });
@@ -64,4 +153,15 @@ document.addEventListener('DOMContentLoaded', function() {
             tabsList.appendChild(tabItem);
         }
     });
+
+    // Function to update all mute button icons when the theme changes
+    function updateAllMuteButtons() {
+        muteButtons.forEach(function(item) {
+            chrome.tabs.sendMessage(item.tabId, { type: 'getMute' }, function(response) {
+                if (response && response.muted != null) {
+                    updateMuteButtonIcon(item.muteButton, response.muted);
+                }
+            });
+        });
+    }
 });
