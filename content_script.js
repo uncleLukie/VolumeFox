@@ -50,7 +50,7 @@
 
     function getVolume() {
         if (gainNode) {
-            return gainNode.gain.value * 100;
+            return Math.round(gainNode.gain.value * 100);
         } else {
             return 100;
         }
