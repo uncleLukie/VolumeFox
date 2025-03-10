@@ -13,8 +13,12 @@
             <h2>VolumeFox</h2>
         </div>
     </div>
-    <label for="volumeSlider">Adjust Volume (%):</label>
-    <input type="range" id="volumeSlider" min="0" max="300" value="100">
+
+    <div class="volume-control">
+        <label for="volumeSlider">Volume:</label>
+        <span id="volumeDisplay">100%</span>
+        <input type="range" id="volumeSlider" min="0" max="300" value="100">
+    </div>
 
     <div class="theme-toggle">
         <button id="toggleTheme">Toggle Theme</button>
@@ -25,8 +29,8 @@
         <ul id="tabsList"></ul>
     </div>
 
-    <div class="github-link">
-        <a href="https://github.com/uncleLukie/VolumeFox" target="_blank">View on GitHub</a>
+    <div class="footer">
+        <small>Made by <a href="https://unclelukie.com" target="_blank">uncleLukie</a></small>
     </div>
 </div>
 <script src="popup.js"></script>

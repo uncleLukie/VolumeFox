@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const volumeSlider = document.getElementById('volumeSlider');
+    const volumeDisplay = document.getElementById('volumeDisplay');
     const toggleThemeBtn = document.getElementById('toggleTheme');
     const tabsList = document.getElementById('tabsList');
 
@@ -8,9 +9,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.add('dark');
     }
 
+    // Restore volume level from localStorage or default to 100
+    const savedVolume = localStorage.getItem('volumeLevel') || '100';
+    volumeSlider.value = savedVolume;
+    volumeDisplay.textContent = savedVolume + '%';
+
     // Volume slider: Slider value 100 corresponds to gain 1.0.
     volumeSlider.addEventListener('input', (e) => {
         const volume = e.target.value;
+        volumeDisplay.textContent = volume + '%';
+        localStorage.setItem('volumeLevel', volume);
         chrome.runtime.sendMessage({ action: 'setVolume', volume: volume }, function(response) {
             if (response && response.success) {
                 console.log('Volume adjusted to: ', volume);
@@ -36,7 +44,20 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 tabs.forEach((tab) => {
                     const li = document.createElement('li');
-                    li.textContent = tab.title;
+
+                    // If available, create an image for the tab's favicon.
+                    if (tab.favIconUrl) {
+                        const img = document.createElement('img');
+                        img.src = tab.favIconUrl;
+                        li.appendChild(img);
+                    }
+
+                    // Create a span for the tab title and truncate if needed.
+                    const span = document.createElement('span');
+                    span.classList.add('tab-title');
+                    span.textContent = tab.title || 'Untitled';
+                    li.appendChild(span);
+
                     tabsList.appendChild(li);
                 });
             }

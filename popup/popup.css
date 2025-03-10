@@ -13,6 +13,7 @@ body.dark {
 
 .container {
     padding: 10px;
+    width: 300px;
 }
 
 .header {
@@ -32,6 +33,21 @@ h2 {
     margin: 0;
 }
 
+.volume-control {
+    margin-bottom: 10px;
+}
+
+.volume-control label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+#volumeDisplay {
+    margin-left: 10px;
+    font-weight: bold;
+}
+
 input[type="range"] {
     width: 100%;
     margin-bottom: 10px;
@@ -39,23 +55,60 @@ input[type="range"] {
 
 .theme-toggle {
     margin: 10px 0;
+    text-align: center;
+}
+
+.theme-toggle button {
+    padding: 5px 10px;
+    cursor: pointer;
 }
 
 .audible-tabs {
     margin: 10px 0;
 }
 
+.audible-tabs h3 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+}
+
 .audible-tabs ul {
     list-style-type: none;
     padding: 0;
+    margin: 0;
+    max-height: 150px;
+    overflow-y: auto;
 }
 
 .audible-tabs li {
-    font-size: 14px;
-    margin: 2px 0;
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 }
 
-.github-link {
-    margin-top: 10px;
+.audible-tabs li img {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+}
+
+.audible-tabs li .tab-title {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.footer {
     text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
+}
+
+.footer a {
+    text-decoration: none;
+    color: inherit;
 }
