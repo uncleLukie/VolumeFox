@@ -1,89 +1,65 @@
-// content_script.js
 (function() {
-    let audioContext;
-    let gainNode;
-    let sourceNodes = new Map();
-    let isMuted = false;
-    let lastVolume = 100;
+    // Map to hold media elements and their associated AudioContext and GainNode.
+    const mediaContexts = new Map();
 
-    function init() {
-        if (!audioContext) {
-            try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                gainNode = audioContext.createGain();
-                gainNode.connect(audioContext.destination);
-            } catch (e) {
-                console.error('AudioContext error:', e);
+    function attachAudioBooster(mediaElement) {
+        if (mediaContexts.has(mediaElement)) return; // Avoid re‑attaching.
+        try {
+            const audioContext = new AudioContext();
+            const source = audioContext.createMediaElementSource(mediaElement);
+            const gainNode = audioContext.createGain();
+            // Default gain: 1.0 (100% volume)
+            gainNode.gain.value = 1.0;
+            source.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            mediaContexts.set(mediaElement, { audioContext, source, gainNode });
+
+            // Ensure the AudioContext resumes if it starts suspended (common in browsers).
+            if (audioContext.state === 'suspended') {
+                const resumeAudio = () => {
+                    audioContext.resume();
+                    mediaElement.removeEventListener('play', resumeAudio);
+                };
+                mediaElement.addEventListener('play', resumeAudio);
             }
+        } catch (err) {
+            console.error('Error attaching audio booster:', err);
         }
     }
 
-    function connectMediaElements() {
-        const mediaElements = document.querySelectorAll('video, audio');
-        mediaElements.forEach(mediaElement => {
-            if (!sourceNodes.has(mediaElement)) {
-                try {
-                    const source = audioContext.createMediaElementSource(mediaElement);
-                    source.connect(gainNode);
-                    sourceNodes.set(mediaElement, source);
+    // Attach the booster to any existing media elements.
+    const mediaElements = document.querySelectorAll('video, audio');
+    mediaElements.forEach(attachAudioBooster);
 
-                    // Remove from map when media element ends
-                    mediaElement.addEventListener('ended', () => {
-                        sourceNodes.delete(mediaElement);
-                    });
-                } catch (e) {
-                    console.error('Error connecting media element:', e);
+    // Use a MutationObserver to detect new media elements added to the page.
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    if (node.matches && node.matches('video, audio')) {
+                        attachAudioBooster(node);
+                    }
+                    // Also search within the node for media elements.
+                    const childMedia = node.querySelectorAll && node.querySelectorAll('video, audio');
+                    if (childMedia && childMedia.length) {
+                        childMedia.forEach(attachAudioBooster);
+                    }
                 }
-            }
+            });
         });
-    }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
 
-    function setVolume(volume) {
-        init();
-        if (gainNode) {
-            gainNode.gain.value = volume / 100;
-            lastVolume = volume;
-            isMuted = (volume === 0);
-            connectMediaElements();
-        }
-    }
-
-    function getVolume() {
-        if (gainNode) {
-            return Math.round(gainNode.gain.value * 100);
-        } else {
-            return 100;
-        }
-    }
-
-    function setMute(mute) {
-        init();
-        if (gainNode) {
-            isMuted = mute;
-            if (isMuted) {
-                gainNode.gain.value = 0;
-            } else {
-                gainNode.gain.value = lastVolume / 100;
-            }
-        }
-    }
-
-    function getMute() {
-        return isMuted;
-    }
-
-    // Listen for messages from the popup script
+    // Listen for messages from the popup or background to set volume.
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.type === 'setVolume') {
-            setVolume(message.volume);
-        } else if (message.type === 'getVolume') {
-            init();
-            connectMediaElements();
-            sendResponse({ volume: getVolume() });
-        } else if (message.type === 'setMute') {
-            setMute(message.mute);
-        } else if (message.type === 'getMute') {
-            sendResponse({ muted: getMute() });
+        if (message.action === 'setVolume') {
+            const sliderValue = parseFloat(message.volume);
+            // Convert slider value to gain: 100 -> 1.0, 300 -> 3.0, etc.
+            const gainValue = sliderValue / 100;
+            mediaContexts.forEach(({ gainNode }) => {
+                gainNode.gain.value = gainValue;
+            });
+            sendResponse({ success: true });
         }
     });
 })();

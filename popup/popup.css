@@ -1,33 +1,24 @@
-/* popup/popup.css */
-
-/* Theme Variables */
-:root {
-    --background-color: #ffffff;
-    --text-color: #000000;
-}
-
-.dark-theme {
-    --background-color: #121212;
-    --text-color: #ffffff;
-}
-
 body {
-    background-color: var(--background-color);
-    color: var(--text-color);
+    background-color: #f0f0f0;
     font-family: Arial, sans-serif;
     margin: 0;
-    padding: 10px; /* Added padding to the body */
+    padding: 10px;
+    transition: background-color 0.3s, color 0.3s;
 }
 
-/* Container and Header */
+body.dark {
+    background-color: #333;
+    color: #eee;
+}
+
 .container {
-    /* Remove padding from the container since it's now on the body */
-    /* padding: 10px; */
+    padding: 10px;
 }
 
 .header {
     display: flex;
     align-items: center;
+    margin-bottom: 10px;
 }
 
 .logo {
@@ -36,62 +27,35 @@ body {
     margin-right: 10px;
 }
 
-.created-by {
-    font-size: 12px;
+h2 {
+    font-size: 18px;
+    margin: 0;
 }
 
-/* Theme Switcher */
-.theme-switcher {
-    margin-left: auto;
-}
-
-.theme-switcher img {
-    width: 24px;
-    height: 24px;
-    cursor: pointer;
-}
-
-/* Tabs List */
-#tabsList {
-    margin-top: 10px;
-}
-
-/* Tab Item */
-.tabItem {
-    display: flex;
-    align-items: center;
+input[type="range"] {
+    width: 100%;
     margin-bottom: 10px;
 }
 
-.tabIcon {
-    width: 16px;
-    height: 16px;
-    margin-right: 5px;
+.theme-toggle {
+    margin: 10px 0;
 }
 
-.tabTitle {
-    flex-grow: 1;
-    margin-right: 5px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+.audible-tabs {
+    margin: 10px 0;
 }
 
-/* Volume Slider and Label */
-.tabSlider {
-    width: 100px;
-    margin-right: 5px;
+.audible-tabs ul {
+    list-style-type: none;
+    padding: 0;
 }
 
-.tabVolumeLabel {
-    width: 40px;
-    text-align: right;
-    margin-right: 5px;
+.audible-tabs li {
+    font-size: 14px;
+    margin: 2px 0;
 }
 
-/* Mute Button */
-.muteButton {
-    width: 24px;
-    height: 24px;
-    cursor: pointer;
+.github-link {
+    margin-top: 10px;
+    text-align: center;
 }

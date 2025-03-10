@@ -1,4 +1,3 @@
-<!-- popup/popup.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,19 +8,27 @@
 <body>
 <div class="container">
     <div class="header">
-        <img src="../icons/volume256.png" class="logo" alt="volume fox icon">
+        <img src="../icons/volume256.png" class="logo" alt="VolumeFox logo">
         <div>
             <h2>VolumeFox</h2>
-            <span class="created-by">made by <a href="https://github.com/unclelukie" target="_blank">uncleLukie</a></span>
-        </div>
-        <!-- Theme Switcher Button -->
-        <div class="theme-switcher">
-            <img id="themeToggle" src="../icons/moon.png" alt="Toggle Theme">
         </div>
     </div>
+    <label for="volumeSlider">Adjust Volume (%):</label>
+    <input type="range" id="volumeSlider" min="0" max="300" value="100">
+
+    <div class="theme-toggle">
+        <button id="toggleTheme">Toggle Theme</button>
+    </div>
+
+    <div class="audible-tabs">
+        <h3>Tabs Playing Audio:</h3>
+        <ul id="tabsList"></ul>
+    </div>
+
+    <div class="github-link">
+        <a href="https://github.com/uncleLukie/VolumeFox" target="_blank">View on GitHub</a>
+    </div>
 </div>
-<h3>Tabs Playing Audio:</h3>
-<div id="tabsList"></div>
 <script src="popup.js"></script>
 </body>
 </html>
