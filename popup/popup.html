@@ -2,36 +2,83 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VolumeFox</title>
     <link rel="stylesheet" href="popup.css">
 </head>
-<body>
-<div class="container">
-    <div class="header">
-        <img src="../icons/volume256.png" class="logo" alt="VolumeFox logo">
-        <div>
-            <h2>VolumeFox</h2>
+<body class="dark">
+<div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+        <div class="brand">
+            <img src="../icons/volume48.png" class="brand-logo" alt="VolumeFox logo">
+            <div>
+                <h1 class="brand-title">VolumeFox</h1>
+                <span class="brand-version">v3.0</span>
+            </div>
         </div>
-    </div>
+        <div class="header-actions">
+            <button id="muteBtn" class="icon-btn" title="Toggle Mute" aria-label="Toggle Mute">
+                <img id="muteIcon" src="../icons/lightunmute.png" class="btn-icon-img" alt="Mute">
+            </button>
+            <button id="themeToggleBtn" class="icon-btn" title="Toggle Theme" aria-label="Toggle Theme">
+                <img id="themeIcon" src="../icons/sun.png" class="btn-icon-img" alt="Theme">
+            </button>
+        </div>
+    </header>
 
-    <div class="volume-control">
-        <label for="volumeSlider">Volume:</label>
-        <span id="volumeDisplay">100%</span>
-        <input type="range" id="volumeSlider" min="0" max="300" value="100">
-    </div>
+    <!-- Main Volume Display -->
+    <main class="volume-card">
+        <div class="display-container">
+            <div class="volume-value-wrapper">
+                <span id="volumeValue" class="volume-number">100</span>
+                <span class="volume-unit">%</span>
+            </div>
+            <div class="volume-meta">
+                <span id="volumeDb" class="volume-db">+0.0 dB</span>
+                <span id="volumeBadge" class="status-badge normal">standard</span>
+            </div>
+        </div>
 
-    <div class="theme-toggle">
-        <button id="toggleTheme">Toggle Theme</button>
-    </div>
+        <!-- Slider Control -->
+        <div class="slider-wrapper">
+            <input type="range" id="volumeSlider" min="0" max="600" step="1" value="100" aria-label="Volume Slider">
+            <div class="slider-ticks">
+                <span>0%</span>
+                <span class="tick-mid">100%</span>
+                <span>300%</span>
+                <span>600%</span>
+            </div>
+        </div>
 
-    <div class="audible-tabs">
-        <h3>Tabs Playing Audio:</h3>
-        <ul id="tabsList"></ul>
-    </div>
+        <!-- Preset Buttons -->
+        <div class="presets-container" id="presetPills">
+            <button class="preset-pill" data-volume="100">100%</button>
+            <button class="preset-pill" data-volume="200">200%</button>
+            <button class="preset-pill" data-volume="300">300%</button>
+            <button class="preset-pill" data-volume="400">400%</button>
+            <button class="preset-pill" data-volume="500">500%</button>
+            <button class="preset-pill" data-volume="600">600%</button>
+        </div>
+    </main>
 
-    <div class="footer">
-        <small>Made by <a href="https://unclelukie.com" target="_blank">uncleLukie</a></small>
-    </div>
+    <!-- Tabs Playing Audio Section -->
+    <section class="audible-section">
+        <div class="section-header">
+            <div class="section-title">
+                <span>Tabs Playing Audio</span>
+            </div>
+            <span id="tabCountBadge" class="count-badge">0</span>
+        </div>
+        <ul id="tabsList" class="tabs-list">
+            <li class="empty-state">No tabs playing audio.</li>
+        </ul>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <small>made by <a href="https://unclelukie.com" target="_blank" rel="noopener noreferrer">uncleLukie</a></small>
+    </footer>
 </div>
 <script src="popup.js"></script>
 </body>

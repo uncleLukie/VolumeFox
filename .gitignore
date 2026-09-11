@@ -1,3 +1,9 @@
-#idea
+# IDE
 .idea
+.vscode
+
+# Build artifacts
 VolumeFox.zip
+web-ext-artifacts/
+dist/
+node_modules/

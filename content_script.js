@@ -1,65 +1,124 @@
+/**
+ * VolumeFox - Content Script (Isolated World)
+ * Runs at document_start in all frames.
+ * Relays messages between popup/background and the MAIN world page_audio_hook.
+ */
 (function() {
-    // Map to hold media elements and their associated AudioContext and GainNode.
-    const mediaContexts = new Map();
+    'use strict';
 
-    function attachAudioBooster(mediaElement) {
-        if (mediaContexts.has(mediaElement)) return; // Avoid re‑attaching.
+    if (window.__volumeFoxCSInstalled) return;
+    window.__volumeFoxCSInstalled = true;
+
+    const MSG_SOURCE_CS = 'volumefox-cs';
+    const MSG_TARGET_PAGE = 'volumefox-page';
+
+    let currentVolume = 100;
+    let currentMuted = false;
+
+    // Cross-browser runtime API wrapper
+    const api = typeof browser !== 'undefined' ? browser : chrome;
+
+    function postToPage(action, payload = {}) {
         try {
-            const audioContext = new AudioContext();
-            const source = audioContext.createMediaElementSource(mediaElement);
-            const gainNode = audioContext.createGain();
-            // Default gain: 1.0 (100% volume)
-            gainNode.gain.value = 1.0;
-            source.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            mediaContexts.set(mediaElement, { audioContext, source, gainNode });
-
-            // Ensure the AudioContext resumes if it starts suspended (common in browsers).
-            if (audioContext.state === 'suspended') {
-                const resumeAudio = () => {
-                    audioContext.resume();
-                    mediaElement.removeEventListener('play', resumeAudio);
-                };
-                mediaElement.addEventListener('play', resumeAudio);
-            }
-        } catch (err) {
-            console.error('Error attaching audio booster:', err);
+            window.postMessage({
+                source: MSG_SOURCE_CS,
+                target: MSG_TARGET_PAGE,
+                action,
+                ...payload
+            }, '*');
+        } catch (e) {
+            console.error('[VolumeFox CS] PostMessage error:', e);
         }
     }
 
-    // Attach the booster to any existing media elements.
-    const mediaElements = document.querySelectorAll('video, audio');
-    mediaElements.forEach(attachAudioBooster);
-
-    // Use a MutationObserver to detect new media elements added to the page.
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            mutation.addedNodes.forEach((node) => {
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    if (node.matches && node.matches('video, audio')) {
-                        attachAudioBooster(node);
-                    }
-                    // Also search within the node for media elements.
-                    const childMedia = node.querySelectorAll && node.querySelectorAll('video, audio');
-                    if (childMedia && childMedia.length) {
-                        childMedia.forEach(attachAudioBooster);
-                    }
-                }
-            });
+    // Sync volume to page hook
+    function syncToPage() {
+        postToPage('setVolume', {
+            volume: currentVolume,
+            muted: currentMuted
         });
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    }
 
-    // Listen for messages from the popup or background to set volume.
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.action === 'setVolume') {
-            const sliderValue = parseFloat(message.volume);
-            // Convert slider value to gain: 100 -> 1.0, 300 -> 3.0, etc.
-            const gainValue = sliderValue / 100;
-            mediaContexts.forEach(({ gainNode }) => {
-                gainNode.gain.value = gainValue;
-            });
-            sendResponse({ success: true });
+    // Listen for replies from page_audio_hook.js
+    window.addEventListener('message', event => {
+        if (event.source !== window) return;
+        const data = event.data;
+        if (!data || data.source !== MSG_TARGET_PAGE || data.target !== MSG_SOURCE_CS) return;
+
+        if (data.action === 'stateUpdated' || data.action === 'stateReport') {
+            if (typeof data.volume === 'number') currentVolume = data.volume;
+            if (typeof data.muted === 'boolean') currentMuted = data.muted;
         }
     });
+
+    // Listen for extension messages (from popup or background)
+    api.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (!message || !message.action) return false;
+
+        switch (message.action) {
+            case 'ping':
+                sendResponse({ success: true, alive: true });
+                return false;
+
+            case 'getVolume':
+                sendResponse({
+                    success: true,
+                    volume: currentVolume,
+                    muted: currentMuted
+                });
+                return false;
+
+            case 'setVolume': {
+                const vol = parseFloat(message.volume);
+                if (!isNaN(vol)) {
+                    currentVolume = Math.max(0, Math.min(600, vol));
+                }
+                if (typeof message.muted === 'boolean') {
+                    currentMuted = message.muted;
+                }
+                syncToPage();
+                sendResponse({
+                    success: true,
+                    volume: currentVolume,
+                    muted: currentMuted
+                });
+                return false;
+            }
+
+            case 'setMute': {
+                if (typeof message.muted === 'boolean') {
+                    currentMuted = message.muted;
+                } else {
+                    currentMuted = !currentMuted;
+                }
+                syncToPage();
+                sendResponse({
+                    success: true,
+                    volume: currentVolume,
+                    muted: currentMuted
+                });
+                return false;
+            }
+        }
+        return false;
+    });
+
+    // Ask background for the active tab's stored volume on initial load
+    try {
+        api.runtime.sendMessage({ action: 'getTabInitialState' }, response => {
+            if (api.runtime.lastError) return;
+            if (response && typeof response.volume === 'number') {
+                currentVolume = response.volume;
+                currentMuted = !!response.muted;
+                syncToPage();
+            }
+        });
+    } catch (_) {}
+
+    // Resync once DOM is interactive / loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', syncToPage, { once: true });
+    } else {
+        syncToPage();
+    }
 })();

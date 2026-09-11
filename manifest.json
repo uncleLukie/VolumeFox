@@ -1,41 +1,91 @@
 {
-    "manifest_version": 2,
-    "name": "VolumeFox",
-    "version": "2.1",
-    "description": "A FOSS volume booster for your browser.",
-    "icons": {
-        "16": "icons/volume16.png",
-        "32": "icons/volume32.png",
-        "48": "icons/volume48.png",
-        "128": "icons/volume128.png"
+  "manifest_version": 3,
+  "name": "VolumeFox",
+  "version": "3.0",
+  "description": "A powerful, clean volume booster and audio manager for Firefox.",
+  "icons": {
+    "16": "icons/volume16.png",
+    "32": "icons/volume32.png",
+    "48": "icons/volume48.png",
+    "64": "icons/volume64.png",
+    "128": "icons/volume128.png",
+    "256": "icons/volume256.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/volume16.png",
+      "32": "icons/volume32.png",
+      "48": "icons/volume48.png"
     },
-    "browser_action": {
-        "default_icon": "icons/volume16.png",
-        "default_popup": "popup/popup.html",
-        "default_title": "VolumeFox"
-    },
-    "permissions": [
-        "activeTab",
-        "storage",
-        "tabs"
-    ],
-    "content_scripts": [
-        {
-            "matches": ["<all_urls>"],
-            "js": ["content_script.js"],
-            "run_at": "document_end"
-        }
-    ],
-    "background": {
-        "scripts": ["background.js"],
-        "persistent": true
-    },
-    "host_permissions": [
+    "default_popup": "popup/popup.html",
+    "default_title": "VolumeFox",
+    "theme_icons": [
+      {
+        "light": "icons/icon-dark-16.png",
+        "dark": "icons/icon-light-16.png",
+        "size": 16
+      },
+      {
+        "light": "icons/icon-dark-32.png",
+        "dark": "icons/icon-light-32.png",
+        "size": 32
+      },
+      {
+        "light": "icons/icon-dark-48.png",
+        "dark": "icons/icon-light-48.png",
+        "size": 48
+      }
+    ]
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
         "<all_urls>"
-    ],
-    "browser_specific_settings": {
-        "gecko": {
-            "id": "{2f733275-ed2b-462d-8abe-6543039d0a38}"
-        }
+      ],
+      "js": [
+        "page_audio_hook.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content_script.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true
     }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{2f733275-ed2b-462d-8abe-6543039d0a38}",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
 }

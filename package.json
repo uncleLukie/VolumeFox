@@ -1,0 +1,22 @@
+{
+  "name": "volumefox",
+  "version": "3.0.0",
+  "description": "A powerful, clean volume booster and audio manager for Firefox.",
+  "scripts": {
+    "lint": "web-ext lint",
+    "build": "web-ext build --overwrite-dest",
+    "start": "web-ext run"
+  },
+  "keywords": [
+    "firefox",
+    "extension",
+    "volume-booster",
+    "audio",
+    "web-audio"
+  ],
+  "author": "uncleLukie",
+  "license": "MIT",
+  "devDependencies": {
+    "web-ext": "^10.6.0"
+  }
+}

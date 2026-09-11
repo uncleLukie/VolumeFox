@@ -1,114 +1,487 @@
-body {
-    background-color: #f0f0f0;
-    font-family: Arial, sans-serif;
+:root {
+    --bg-page: #121214;
+    --bg-card: #1a1a1e;
+    --bg-hover: #26262c;
+    --bg-input: #2a2a32;
+    --border-color: #2e2e38;
+    --text-primary: #f4f4f6;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+
+    --brand-teal: #32bea6;
+    --brand-teal-hover: #29a993;
+    --brand-glow: rgba(50, 190, 166, 0.25);
+
+    --color-red: #ef4444;
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-full: 9999px;
+
+    --transition: all 0.2s ease;
+}
+
+body.light {
+    --bg-page: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-hover: #f1f5f9;
+    --bg-input: #e2e8f0;
+    --border-color: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+
+    --brand-teal: #0d9488;
+    --brand-teal-hover: #0f766e;
+    --brand-glow: rgba(13, 148, 136, 0.2);
+}
+
+* {
+    box-sizing: border-box;
     margin: 0;
-    padding: 10px;
-    transition: background-color 0.3s, color 0.3s;
+    padding: 0;
 }
 
-body.dark {
-    background-color: #333;
-    color: #eee;
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    width: 310px;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.container {
-    padding: 10px;
-    width: 300px;
+.app-container {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
-.header {
+/* Header */
+.app-header {
     display: flex;
     align-items: center;
-    margin-bottom: 10px;
+    justify-content: space-between;
 }
 
-.logo {
-    width: 48px;
-    height: 48px;
-    margin-right: 10px;
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-h2 {
+.brand-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+}
+
+.brand-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    display: inline-block;
+    color: var(--text-primary);
+}
+
+.brand-version {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    background-color: var(--bg-input);
+    color: var(--brand-teal);
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.icon-btn:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--text-muted);
+}
+
+.icon-btn.active-mute {
+    background-color: rgba(239, 68, 68, 0.15);
+    border-color: var(--color-red);
+}
+
+.btn-icon-img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+/* Main Volume Card */
+.volume-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.display-container {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.volume-value-wrapper {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+}
+
+.volume-number {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1;
+    color: var(--brand-teal);
+    transition: color 0.2s ease;
+}
+
+.volume-number.normal {
+    color: var(--text-primary);
+}
+
+.volume-number.boosted {
+    color: var(--brand-teal);
+}
+
+.volume-number.muted {
+    color: var(--color-red);
+}
+
+.volume-unit {
     font-size: 18px;
-    margin: 0;
+    font-weight: 600;
+    color: var(--text-secondary);
 }
 
-.volume-control {
-    margin-bottom: 10px;
+.volume-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
 }
 
-.volume-control label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 5px;
+.volume-db {
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
 }
 
-#volumeDisplay {
-    margin-left: 10px;
-    font-weight: bold;
+.status-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+}
+
+.status-badge.normal {
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+}
+
+.status-badge.boosted {
+    background-color: rgba(50, 190, 166, 0.15);
+    color: var(--brand-teal);
+    border: 1px solid rgba(50, 190, 166, 0.3);
+}
+
+.status-badge.muted {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--color-red);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Slider */
+.slider-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
     width: 100%;
-    margin-bottom: 10px;
-}
-
-.theme-toggle {
-    margin: 10px 0;
-    text-align: center;
-}
-
-.theme-toggle button {
-    padding: 5px 10px;
+    height: 7px;
+    border-radius: var(--radius-full);
+    background: var(--bg-input);
+    outline: none;
     cursor: pointer;
+    transition: background 0.15s ease;
 }
 
-.audible-tabs {
-    margin: 10px 0;
+input[type="range"]::-webkit-slider-runnable-track {
+    height: 7px;
+    border-radius: var(--radius-full);
 }
 
-.audible-tabs h3 {
-    margin: 0 0 5px 0;
-    font-size: 16px;
+input[type="range"]::-moz-range-track {
+    height: 7px;
+    border-radius: var(--radius-full);
+    background: var(--bg-input);
 }
 
-.audible-tabs ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    max-height: 150px;
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--brand-teal);
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    margin-top: -5px;
+    transition: transform 0.1s ease;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--brand-teal);
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    transition: transform 0.1s ease;
+}
+
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(1.15);
+}
+
+input[type="range"]:hover::-moz-range-thumb,
+input[type="range"]:active::-moz-range-thumb {
+    transform: scale(1.15);
+}
+
+.slider-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding: 0 2px;
+}
+
+.tick-mid {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+/* Presets */
+.presets-container {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+}
+
+.preset-pill {
+    background-color: var(--bg-input);
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 2px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.preset-pill:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.preset-pill.active {
+    background-color: var(--brand-teal);
+    color: #ffffff;
+    border-color: var(--brand-teal);
+}
+
+/* Audible Tabs Section */
+.audible-section {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+}
+
+.count-badge {
+    font-size: 10px;
+    font-weight: 700;
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+}
+
+.tabs-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 140px;
     overflow-y: auto;
 }
 
-.audible-tabs li {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px;
-    padding: 5px;
-    border: 1px solid #ccc;
+.tabs-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.tabs-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
     border-radius: 4px;
 }
 
-.audible-tabs li img {
-    width: 16px;
-    height: 16px;
-    margin-right: 8px;
+.tab-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 9px;
+    background-color: var(--bg-page);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition);
 }
 
-.audible-tabs li .tab-title {
+.tab-item:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--brand-teal);
+}
+
+.tab-item.current-tab {
+    border-color: var(--brand-teal);
+    background-color: rgba(50, 190, 166, 0.08);
+}
+
+.tab-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
     flex: 1;
+}
+
+.tab-icon {
+    width: 15px;
+    height: 15px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.tab-fallback-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--brand-teal);
+    flex-shrink: 0;
+    margin-left: 3px;
+    margin-right: 4px;
+}
+
+.tab-title-text {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.footer {
-    text-align: center;
-    margin-top: 10px;
-    font-size: 12px;
+.tab-vol-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    margin-left: 6px;
 }
 
-.footer a {
+.tab-vol-badge.boosted {
+    background-color: rgba(50, 190, 166, 0.15);
+    color: var(--brand-teal);
+}
+
+.tab-vol-badge.muted {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--color-red);
+}
+
+.empty-state {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 10px;
+}
+
+/* Footer */
+.app-footer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.app-footer a {
+    color: var(--brand-teal);
     text-decoration: none;
-    color: inherit;
+    font-weight: 500;
+}
+
+.app-footer a:hover {
+    text-decoration: underline;
 }
