@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VolumeFox",
-  "version": "3.0",
+  "version": "3.1",
   "description": "A powerful, clean volume booster and audio manager for Firefox.",
   "icons": {
     "16": "icons/volume16.png",
@@ -38,10 +38,32 @@
     ]
   },
   "permissions": [
-    "activeTab",
     "storage",
     "tabs"
   ],
+  "commands": {
+    "volume-up": {
+      "suggested_key": {
+        "default": "Alt+Shift+Up"
+      },
+      "description": "Increase volume of the current tab"
+    },
+    "volume-down": {
+      "suggested_key": {
+        "default": "Alt+Shift+Down"
+      },
+      "description": "Decrease volume of the current tab"
+    },
+    "toggle-mute": {
+      "suggested_key": {
+        "default": "Alt+Shift+M"
+      },
+      "description": "Mute or unmute the current tab"
+    },
+    "reset-volume": {
+      "description": "Reset the current tab to 100%"
+    }
+  },
   "host_permissions": [
     "<all_urls>"
   ],
@@ -80,12 +102,15 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "{2f733275-ed2b-462d-8abe-6543039d0a38}",
-      "strict_min_version": "142.0",
+      "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": [
           "none"
         ]
       }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
     }
   }
 }

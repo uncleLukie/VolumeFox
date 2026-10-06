@@ -134,6 +134,70 @@ body {
     object-fit: contain;
 }
 
+/* Page notice (unsupported page / needs reload) */
+.page-notice {
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 9px 11px;
+    border-radius: var(--radius-md);
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--text-primary);
+}
+
+.page-notice[hidden],
+.controlling-bar[hidden],
+#shortcutsWrap[hidden] {
+    display: none;
+}
+
+/* Controlled-tab bar */
+.controlling-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: var(--radius-md);
+    background-color: rgba(50, 190, 166, 0.1);
+    border: 1px solid rgba(50, 190, 166, 0.3);
+    color: var(--text-secondary);
+}
+
+.controlling-title {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.controlling-reset {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    color: var(--brand-teal);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: var(--transition);
+}
+
+.controlling-reset:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--brand-teal);
+}
+
+/* Disabled controls (unsupported page) */
+.volume-card.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 /* Main Volume Card */
 .volume-card {
     background-color: var(--bg-card);
@@ -441,6 +505,14 @@ input[type="range"]:active::-moz-range-thumb {
     text-overflow: ellipsis;
 }
 
+.tab-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: 6px;
+}
+
 .tab-vol-badge {
     font-size: 10px;
     font-weight: 700;
@@ -449,7 +521,29 @@ input[type="range"]:active::-moz-range-thumb {
     background-color: var(--bg-input);
     color: var(--text-secondary);
     flex-shrink: 0;
-    margin-left: 6px;
+}
+
+.tab-item.silent .tab-title-text {
+    color: var(--text-secondary);
+}
+
+.tab-goto {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.tab-goto:hover {
+    color: var(--brand-teal);
+    border-color: var(--border-color);
+    background-color: var(--bg-hover);
 }
 
 .tab-vol-badge.boosted {

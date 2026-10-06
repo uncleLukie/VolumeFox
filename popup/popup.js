@@ -1,17 +1,13 @@
-/**
- * VolumeFox - Popup Controller
- * Handles slider adjustments, presets, mute toggle, and audible tabs list.
- */
 document.addEventListener('DOMContentLoaded', async function() {
     'use strict';
 
     const api = typeof browser !== 'undefined' ? browser : chrome;
 
-    // Elements
     const volumeSlider = document.getElementById('volumeSlider');
     const volumeValue = document.getElementById('volumeValue');
     const volumeDb = document.getElementById('volumeDb');
     const volumeBadge = document.getElementById('volumeBadge');
+    const volumeCard = document.querySelector('.volume-card');
     const muteBtn = document.getElementById('muteBtn');
     const muteIcon = document.getElementById('muteIcon');
     const themeToggleBtn = document.getElementById('themeToggleBtn');
@@ -19,14 +15,25 @@ document.addEventListener('DOMContentLoaded', async function() {
     const tabsList = document.getElementById('tabsList');
     const tabCountBadge = document.getElementById('tabCountBadge');
     const presetPills = document.querySelectorAll('.preset-pill');
+    const brandVersion = document.getElementById('brandVersion');
+    const pageNotice = document.getElementById('pageNotice');
+    const controllingBar = document.getElementById('controllingBar');
+    const controllingTitle = document.getElementById('controllingTitle');
+    const controllingReset = document.getElementById('controllingReset');
+    const shortcutsWrap = document.getElementById('shortcutsWrap');
+    const shortcutsLink = document.getElementById('shortcutsLink');
 
-    // Local State
+    let activeTabId = null;
     let currentTabId = null;
     let currentVolume = 100;
     let isMuted = false;
     let sendThrottleTimeout = null;
 
-    // 1. Theme Management
+    try {
+        const manifest = api.runtime.getManifest();
+        if (manifest && manifest.version) brandVersion.textContent = `v${manifest.version}`;
+    } catch (_) {}
+
     function applyTheme(theme) {
         if (theme === 'light') {
             document.body.classList.remove('dark');
@@ -51,7 +58,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         applyTheme(nextTheme);
     });
 
-    // 2. Format dB
     function formatDb(vol) {
         if (vol <= 0) return '-inf dB';
         const db = 20 * Math.log10(vol / 100.0);
@@ -59,7 +65,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         return `${sign}${db.toFixed(1)} dB`;
     }
 
-    // 3. Update Slider Track Fill (Teal)
     function updateSliderTrack(vol) {
         const pct = Math.min(100, Math.max(0, (vol / 600) * 100));
         const isLight = document.body.classList.contains('light');
@@ -68,7 +73,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         volumeSlider.style.background = `linear-gradient(to right, ${tealColor} 0%, ${tealColor} ${pct}%, ${emptyTrack} ${pct}%, ${emptyTrack} 100%)`;
     }
 
-    // 4. Update Mute Icon
     function updateMuteButtonDisplay() {
         const isLight = document.body.classList.contains('light');
         if (isLight) {
@@ -77,14 +81,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             muteIcon.src = isMuted ? '../icons/lightmute.png' : '../icons/lightunmute.png';
         }
 
-        if (isMuted) {
-            muteBtn.classList.add('active-mute');
-        } else {
-            muteBtn.classList.remove('active-mute');
-        }
+        muteBtn.classList.toggle('active-mute', isMuted);
     }
 
-    // 5. Update UI Components
     function updateUI(vol, muted) {
         currentVolume = Math.round(vol);
         isMuted = !!muted;
@@ -117,23 +116,25 @@ document.addEventListener('DOMContentLoaded', async function() {
         updateMuteButtonDisplay();
         updateSliderTrack(currentVolume);
 
-        // Highlight active preset pill
         presetPills.forEach(pill => {
             const pillVal = parseInt(pill.dataset.volume, 10);
-            if (pillVal === currentVolume && !isMuted) {
-                pill.classList.add('active');
-            } else {
-                pill.classList.remove('active');
-            }
+            pill.classList.toggle('active', pillVal === currentVolume && !isMuted);
         });
     }
 
-    // 6. Send volume to background/content script
+    function sendMessage(message) {
+        try {
+            return Promise.resolve(api.runtime.sendMessage(message));
+        } catch (err) {
+            return Promise.reject(err);
+        }
+    }
+
     function dispatchVolume(vol, muted) {
         if (sendThrottleTimeout) clearTimeout(sendThrottleTimeout);
 
         sendThrottleTimeout = setTimeout(() => {
-            api.runtime.sendMessage({
+            sendMessage({
                 action: 'setVolume',
                 tabId: currentTabId,
                 volume: vol,
@@ -142,7 +143,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }, 15);
     }
 
-    // Slider input event
     volumeSlider.addEventListener('input', (e) => {
         const val = parseInt(e.target.value, 10);
         if (isMuted) isMuted = false;
@@ -150,7 +150,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         dispatchVolume(val, isMuted);
     });
 
-    // Preset pills click event
     presetPills.forEach(pill => {
         pill.addEventListener('click', () => {
             const val = parseInt(pill.dataset.volume, 10);
@@ -160,105 +159,199 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     });
 
-    // Mute toggle button
     muteBtn.addEventListener('click', () => {
         isMuted = !isMuted;
         updateUI(currentVolume, isMuted);
-        api.runtime.sendMessage({
+        sendMessage({
             action: 'setMute',
             tabId: currentTabId,
             muted: isMuted
         }).catch(() => {});
     });
 
-    // 7. Audible Tabs List
-    function updateAudibleTabs() {
-        api.runtime.sendMessage({ action: 'getAudibleTabs' }, response => {
-            if (api.runtime.lastError || !response || !Array.isArray(response.tabs)) return;
+    // content script can't run on about: pages, amo, or tabs that were already open
+    async function checkPageReachable(tabId) {
+        try {
+            const resp = await api.tabs.sendMessage(tabId, { action: 'ping' });
+            return !!(resp && resp.alive);
+        } catch (_) {
+            return false;
+        }
+    }
 
-            const tabs = response.tabs;
-            tabCountBadge.textContent = tabs.length;
-            tabsList.innerHTML = '';
+    function showPageNotice(message) {
+        if (!message) {
+            pageNotice.hidden = true;
+            volumeCard.classList.remove('disabled');
+            return;
+        }
+        pageNotice.textContent = message;
+        pageNotice.hidden = false;
+        volumeCard.classList.add('disabled');
+    }
 
-            if (tabs.length === 0) {
-                const li = document.createElement('li');
-                li.className = 'empty-state';
-                li.textContent = 'No tabs playing audio.';
-                tabsList.appendChild(li);
-                return;
+    function isRestrictedUrl(url) {
+        if (!url) return false;
+        return /^(about|moz-extension|chrome|resource|view-source|jar):/i.test(url) ||
+               /^https?:\/\/(addons\.mozilla\.org|accounts\.firefox\.com)\//i.test(url);
+    }
+
+    async function selectTab(tabId, title) {
+        currentTabId = tabId;
+
+        const [state, reachable] = await Promise.all([
+            sendMessage({ action: 'getVolume', tabId }).catch(() => null),
+            checkPageReachable(tabId)
+        ]);
+
+        if (state && typeof state.volume === 'number') {
+            updateUI(state.volume, state.muted);
+        } else {
+            updateUI(100, false);
+        }
+
+        if (reachable) {
+            showPageNotice(null);
+        } else {
+            let url = '';
+            try {
+                const tab = await api.tabs.get(tabId);
+                url = tab.url || '';
+            } catch (_) {}
+
+            if (isRestrictedUrl(url)) {
+                showPageNotice('VolumeFox can\u2019t control audio on this page. Firefox blocks extensions here.');
+            } else {
+                showPageNotice('VolumeFox isn\u2019t connected to this page yet. Reload the tab to start controlling its volume.');
             }
+        }
 
-            tabs.forEach(tab => {
-                const li = document.createElement('li');
-                li.className = 'tab-item';
-                if (tab.id === currentTabId) {
-                    li.classList.add('current-tab');
-                }
+        if (tabId !== activeTabId && title) {
+            controllingTitle.textContent = title;
+            controllingBar.hidden = false;
+        } else {
+            controllingBar.hidden = true;
+        }
+    }
 
-                const leftDiv = document.createElement('div');
-                leftDiv.className = 'tab-left';
+    controllingReset.addEventListener('click', () => {
+        if (activeTabId != null) {
+            selectTab(activeTabId, null);
+            updateAudibleTabs();
+        }
+    });
 
-                if (tab.favIconUrl && tab.favIconUrl.startsWith('http')) {
-                    const img = document.createElement('img');
-                    img.className = 'tab-icon';
-                    img.src = tab.favIconUrl;
-                    img.onerror = () => {
-                        img.style.display = 'none';
-                        const dot = document.createElement('span');
-                        dot.className = 'tab-fallback-dot';
-                        leftDiv.appendChild(dot);
-                    };
-                    leftDiv.appendChild(img);
-                } else {
+    async function updateAudibleTabs() {
+        let response;
+        try {
+            response = await sendMessage({ action: 'getAudibleTabs' });
+        } catch (_) {
+            return;
+        }
+        if (!response || !Array.isArray(response.tabs)) return;
+
+        const tabs = response.tabs;
+        tabCountBadge.textContent = tabs.length;
+        tabsList.innerHTML = '';
+
+        if (tabs.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'empty-state';
+            li.textContent = 'No tabs playing audio.';
+            tabsList.appendChild(li);
+            return;
+        }
+
+        tabs.forEach(tab => {
+            const li = document.createElement('li');
+            li.className = 'tab-item';
+            if (tab.id === currentTabId) li.classList.add('current-tab');
+            if (tab.audible === false) li.classList.add('silent');
+            li.title = tab.id === activeTabId ? 'This tab' : 'Click to control this tab\u2019s volume';
+
+            const leftDiv = document.createElement('div');
+            leftDiv.className = 'tab-left';
+
+            if (tab.favIconUrl && tab.favIconUrl.startsWith('http')) {
+                const img = document.createElement('img');
+                img.className = 'tab-icon';
+                img.src = tab.favIconUrl;
+                img.alt = '';
+                img.onerror = () => {
+                    img.style.display = 'none';
                     const dot = document.createElement('span');
                     dot.className = 'tab-fallback-dot';
-                    leftDiv.appendChild(dot);
-                }
+                    leftDiv.insertBefore(dot, leftDiv.firstChild);
+                };
+                leftDiv.appendChild(img);
+            } else {
+                const dot = document.createElement('span');
+                dot.className = 'tab-fallback-dot';
+                leftDiv.appendChild(dot);
+            }
 
-                const titleSpan = document.createElement('span');
-                titleSpan.className = 'tab-title-text';
-                titleSpan.textContent = tab.title || 'Untitled Tab';
-                leftDiv.appendChild(titleSpan);
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'tab-title-text';
+            titleSpan.textContent = tab.title || 'Untitled Tab';
+            leftDiv.appendChild(titleSpan);
 
-                li.appendChild(leftDiv);
+            li.appendChild(leftDiv);
 
-                const badge = document.createElement('span');
-                badge.className = 'tab-vol-badge';
-                if (tab.muted) {
-                    badge.classList.add('muted');
-                    badge.textContent = 'MUTED';
-                } else if (tab.volume > 100) {
-                    badge.classList.add('boosted');
-                    badge.textContent = `${tab.volume}%`;
-                } else {
-                    badge.textContent = `${tab.volume || 100}%`;
-                }
-                li.appendChild(badge);
+            const rightDiv = document.createElement('div');
+            rightDiv.className = 'tab-right';
 
-                li.addEventListener('click', () => {
+            const badge = document.createElement('span');
+            badge.className = 'tab-vol-badge';
+            if (tab.muted) {
+                badge.classList.add('muted');
+                badge.textContent = 'MUTED';
+            } else if (tab.volume > 100) {
+                badge.classList.add('boosted');
+                badge.textContent = `${Math.round(tab.volume)}%`;
+            } else {
+                badge.textContent = `${Math.round(tab.volume || 100)}%`;
+            }
+            rightDiv.appendChild(badge);
+
+            if (tab.id !== activeTabId) {
+                const gotoBtn = document.createElement('button');
+                gotoBtn.className = 'tab-goto';
+                gotoBtn.type = 'button';
+                gotoBtn.title = 'Switch to this tab';
+                gotoBtn.setAttribute('aria-label', 'Switch to this tab');
+                gotoBtn.textContent = '\u2197';
+                gotoBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     api.tabs.update(tab.id, { active: true });
-                    currentTabId = tab.id;
-                    updateUI(tab.volume || 100, !!tab.muted);
-                    updateAudibleTabs();
                 });
+                rightDiv.appendChild(gotoBtn);
+            }
 
-                tabsList.appendChild(li);
+            li.appendChild(rightDiv);
+
+            // switching tabs closes the popup, so just control it from here
+            li.addEventListener('click', async () => {
+                await selectTab(tab.id, tab.title);
+                updateAudibleTabs();
             });
+
+            tabsList.appendChild(li);
         });
     }
 
-    // 8. Initialize active tab
+    if (api.commands && typeof api.commands.openShortcutSettings === 'function') {
+        shortcutsWrap.hidden = false;
+        shortcutsLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            api.commands.openShortcutSettings().catch(() => {});
+        });
+    }
+
     try {
         const tabs = await api.tabs.query({ active: true, currentWindow: true });
         if (tabs.length > 0) {
-            currentTabId = tabs[0].id;
-            api.runtime.sendMessage({ action: 'getVolume', tabId: currentTabId }, state => {
-                if (state && typeof state.volume === 'number') {
-                    updateUI(state.volume, state.muted);
-                } else {
-                    updateUI(100, false);
-                }
-            });
+            activeTabId = tabs[0].id;
+            await selectTab(activeTabId, null);
         }
     } catch (err) {
         console.error('[VolumeFox Popup] Tab init failed:', err);

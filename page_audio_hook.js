@@ -1,10 +1,4 @@
-/**
- * VolumeFox - Page Audio Hook
- * Executes in "world": "MAIN" at "run_at": "document_start"
- * 
- * Supports standard DOM, Web Components, and Shadow DOM (Reddit, Lit, etc.),
- * intercepts Web Audio API graphs, and boosts media elements with anti-clipping dynamics compression.
- */
+// main-world hook. routes web audio + media elements through a gain node.
 (function() {
     'use strict';
 
@@ -14,7 +8,6 @@
     const MSG_SOURCE_CS = 'volumefox-cs';
     const MSG_TARGET_PAGE = 'volumefox-page';
 
-    // State
     const state = {
         volume: 100,      // 0 to 600 (%)
         gain: 1.0,        // 0.0 to 6.0
@@ -27,19 +20,31 @@
         return Math.max(0.0, Math.min(6.0, state.volume / 100.0));
     }
 
-    // Tracking
+    function isDefaultState() {
+        return state.volume === 100 && !state.muted;
+    }
+
     const boosterNodes = new WeakSet();
     const contextBoosterMap = new WeakMap();
     const trackedMediaElements = new Set();
     const mediaRoutes = new WeakMap();
+    // base volume is what the page set. the hooked getter reports this back so the page doesn't see our scaling.
     const mediaBaseVolumes = new WeakMap();
+    const mediaListenersAttached = new WeakSet();
+    const routeFailed = new WeakSet();
+    const corsTried = new WeakMap();
+    const corsProbes = new Map();
     let sharedAudioContext = null;
+    let volumeAccessorHooked = false;
 
-    // Preserve native prototypes
     const AudioNodeProto = window.AudioNode && window.AudioNode.prototype;
     const nativeConnect = AudioNodeProto && AudioNodeProto.connect;
     const nativeDisconnect = AudioNodeProto && AudioNodeProto.disconnect;
-    const nativePlay = window.HTMLMediaElement && window.HTMLMediaElement.prototype && window.HTMLMediaElement.prototype.play;
+    const MediaProto = window.HTMLMediaElement && window.HTMLMediaElement.prototype;
+    const nativePlay = MediaProto && MediaProto.play;
+    const nativeVolumeDesc = MediaProto && Object.getOwnPropertyDescriptor(MediaProto, 'volume');
+    const nativeVolumeGet = nativeVolumeDesc && nativeVolumeDesc.get;
+    const nativeVolumeSet = nativeVolumeDesc && nativeVolumeDesc.set;
     const nativeAttachShadow = window.Element && window.Element.prototype && window.Element.prototype.attachShadow;
     const nativeCreateElement = window.Document && window.Document.prototype && window.Document.prototype.createElement;
 
@@ -47,6 +52,25 @@
         if (state.debug) {
             console.log('[VolumeFox Hook]', ...args);
         }
+    }
+
+    function readNativeVolume(el) {
+        return nativeVolumeGet ? nativeVolumeGet.call(el) : el.volume;
+    }
+
+    function writeNativeVolume(el, value) {
+        if (nativeVolumeSet) {
+            nativeVolumeSet.call(el, value);
+        } else {
+            el.volume = value;
+        }
+    }
+
+    function getBaseVolume(el) {
+        if (!mediaBaseVolumes.has(el)) {
+            mediaBaseVolumes.set(el, readNativeVolume(el));
+        }
+        return mediaBaseVolumes.get(el);
     }
 
     function isOfflineContext(context) {
@@ -61,9 +85,6 @@
         }
     }
 
-    /**
-     * Create or retrieve a booster graph (Gain + Compressor) for an AudioContext.
-     */
     function getOrCreateBoosterGraph(context) {
         if (!context || isOfflineContext(context)) return null;
         if (contextBoosterMap.has(context)) {
@@ -74,12 +95,11 @@
             const gainNode = context.createGain();
             const compressor = context.createDynamicsCompressor();
 
-            // Anti-clipping limiter settings
-            compressor.threshold.value = -12; // dB
+            compressor.threshold.value = -12;
             compressor.knee.value = 30;
             compressor.ratio.value = 12;
-            compressor.attack.value = 0.003;  // 3ms
-            compressor.release.value = 0.25;  // 250ms
+            compressor.attack.value = 0.003;
+            compressor.release.value = 0.25;
 
             boosterNodes.add(gainNode);
             boosterNodes.add(compressor);
@@ -103,10 +123,6 @@
         }
     }
 
-    /**
-     * Intercept AudioNode.prototype.connect:
-     * When any page node connects to context.destination, redirect to our booster gain node!
-     */
     if (AudioNodeProto && nativeConnect) {
         AudioNodeProto.connect = function(destination, outputIndex, inputIndex) {
             try {
@@ -133,9 +149,6 @@
         };
     }
 
-    /**
-     * Intercept AudioNode.prototype.disconnect:
-     */
     if (AudioNodeProto && nativeDisconnect) {
         AudioNodeProto.disconnect = function(destination, outputIndex, inputIndex) {
             try {
@@ -162,9 +175,6 @@
         };
     }
 
-    /**
-     * Shared AudioContext for HTMLMediaElements when boosted > 100%
-     */
     function getSharedContext() {
         if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -185,22 +195,86 @@
         return false;
     }
 
-    /**
-     * Attach Web Audio booster to an HTMLMediaElement
-     */
+    function mediaSrc(el) {
+        return el.currentSrc || el.src || '';
+    }
+
+    // cross origin media that wasnt fetched with cors goes silent inside
+    // createMediaElementSource, and that can't be undone. only route when it's safe.
+    function isRoutable(el) {
+        if (!el || el.error || routeFailed.has(el)) return false;
+        const src = mediaSrc(el);
+        if (!src) return false;
+
+        let url;
+        try {
+            url = new URL(src, document.baseURI);
+        } catch (e) {
+            return false;
+        }
+
+        if (url.protocol === 'blob:' || url.protocol === 'data:' || url.protocol === 'mediastream:') return true;
+        if (url.origin === location.origin) return true;
+        // wait until the cors response is actually loaded, not just the attribute
+        if (el.crossOrigin === 'anonymous' || el.crossOrigin === 'use-credentials') return el.readyState >= 2;
+        return false;
+    }
+
+    function probeCors(src) {
+        if (corsProbes.has(src)) return corsProbes.get(src);
+
+        const pending = Promise.resolve().then(() => fetch(src, {
+            method: 'GET',
+            mode: 'cors',
+            credentials: 'omit',
+            cache: 'force-cache',
+            headers: { Range: 'bytes=0-0' }
+        })).then(res => {
+            if (res.body && res.body.cancel) res.body.cancel().catch(() => {});
+            return res.type === 'cors' && (res.ok || res.status === 206);
+        }).catch(() => false);
+
+        corsProbes.set(src, pending);
+        return pending;
+    }
+
+    // if playback hasn't started and the server actually allows cors, opt in now.
+    // flipping crossorigin on something already playing reloads it and firefox
+    // usually won't let us resume play from the extension.
+    function prepareCors(el) {
+        const src = mediaSrc(el);
+        if (!src || el.crossOrigin || corsTried.get(el) === src) return;
+        if (el.readyState > 0 || el.currentTime > 0 || !el.paused) return;
+
+        let url;
+        try {
+            url = new URL(src, document.baseURI);
+        } catch (e) {
+            return;
+        }
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+        if (url.origin === location.origin) return;
+
+        corsTried.set(el, src);
+        probeCors(src).then(ok => {
+            if (!ok || mediaRoutes.has(el)) return;
+            if (mediaSrc(el) !== src) return;
+            if (el.readyState > 0 || el.currentTime > 0 || !el.paused || el.crossOrigin) return;
+            try {
+                el.crossOrigin = 'anonymous';
+            } catch (e) {}
+        });
+    }
+
     function attachMediaElementBooster(element) {
         if (mediaRoutes.has(element)) return mediaRoutes.get(element);
         if (isRestrictedDRM(element)) {
             log('Skipping Web Audio routing due to DRM restrictions');
             return null;
         }
-
-        // On Reddit (v.redd.it) and other CDN-hosted videos that provide CORS,
-        // ensure crossOrigin is set if needed so Web Audio doesn't mute
-        if (!element.crossOrigin && element.src && (element.src.includes('v.redd.it') || element.src.includes('redditmedia.com'))) {
-            try {
-                element.crossOrigin = 'anonymous';
-            } catch (_) {}
+        if (!isRoutable(element)) {
+            prepareCors(element);
+            return null;
         }
 
         const ctx = getSharedContext();
@@ -240,67 +314,44 @@
             log('Attached Web Audio booster to media element successfully');
             return route;
         } catch (err) {
+            routeFailed.add(element);
             log('createMediaElementSource failed (already connected or CORS):', err);
             return null;
         }
     }
 
-    /**
-     * Apply current volume / gain to a single media element
-     */
-    function applyToMediaElement(element) {
-        if (!element || !(element instanceof HTMLMediaElement)) return;
-
-        if (!mediaBaseVolumes.has(element)) {
-            mediaBaseVolumes.set(element, element.volume > 0 ? element.volume : 1.0);
-        }
-
-        const gain = effectiveGain();
-
-        // If muted
-        if (state.muted) {
-            element.muted = true;
-            element.dataset.vfMutedByUs = 'true';
-            return;
-        } else {
-            if (element.muted && element.dataset.vfMutedByUs === 'true') {
-                element.muted = false;
-                delete element.dataset.vfMutedByUs;
+    // write the real volume, bypassing our getter/setter so it isn't recorded as a page change
+    function setNativeVolume(element, value) {
+        const clamped = Math.max(0.0, Math.min(1.0, value));
+        try {
+            if (Math.abs(readNativeVolume(element) - clamped) > 1e-4) {
+                writeNativeVolume(element, clamped);
             }
-        }
-
-        // If volume <= 100%, prefer native volume scaling
-        if (gain <= 1.0) {
-            const route = mediaRoutes.get(element);
-            if (route) {
-                route.gainNode.gain.value = gain;
-            } else {
-                try {
-                    const base = mediaBaseVolumes.get(element) ?? 1.0;
-                    element.volume = Math.max(0.0, Math.min(1.0, base * gain));
-                } catch (e) {
-                    log('Error setting element.volume:', e);
-                }
-            }
-        } else {
-            // Volume > 100% (Boosting)
-            if (isRestrictedDRM(element)) {
-                element.volume = 1.0;
-            } else {
-                const route = attachMediaElementBooster(element);
-                if (route) {
-                    route.gainNode.gain.value = gain;
-                    resumeSharedContext();
-                } else {
-                    element.volume = 1.0;
-                }
-            }
+        } catch (e) {
+            log('Error setting element.volume:', e);
         }
     }
 
-    /**
-     * Apply current state across all contexts and media elements
-     */
+    function applyToMediaElement(element) {
+        if (!element || !(element instanceof HTMLMediaElement)) return;
+
+        const gain = effectiveGain();
+        const base = getBaseVolume(element);
+        let route = mediaRoutes.get(element);
+
+        if (gain > 1.0 && !route && !isRestrictedDRM(element)) {
+            route = attachMediaElementBooster(element);
+        }
+
+        if (route) {
+            route.gainNode.gain.value = gain;
+            setNativeVolume(element, base);
+            if (gain > 0) resumeSharedContext();
+        } else {
+            setNativeVolume(element, base * Math.min(gain, 1.0));
+        }
+    }
+
     function applyState() {
         const targetGain = effectiveGain();
 
@@ -308,7 +359,6 @@
             resumeSharedContext();
         }
 
-        // Scan everywhere (including Shadow DOMs) and apply
         findMediaElements(document).forEach(trackMedia);
 
         for (const el of trackedMediaElements) {
@@ -318,7 +368,6 @@
         }
     }
 
-    // Register media element
     function trackMedia(el) {
         if (!el || !(el instanceof HTMLMediaElement)) return;
         if (trackedMediaElements.has(el)) {
@@ -326,10 +375,21 @@
             return;
         }
         trackedMediaElements.add(el);
+        getBaseVolume(el);
 
-        if (!mediaBaseVolumes.has(el)) {
-            mediaBaseVolumes.set(el, el.volume > 0 ? el.volume : 1.0);
+        if (mediaListenersAttached.has(el)) {
+            applyToMediaElement(el);
+            return;
         }
+        mediaListenersAttached.add(el);
+
+        el.addEventListener('emptied', () => routeFailed.delete(el));
+        el.addEventListener('loadstart', () => {
+            if (effectiveGain() > 1) applyToMediaElement(el);
+        });
+        el.addEventListener('loadeddata', () => {
+            if (effectiveGain() > 1) applyToMediaElement(el);
+        });
 
         el.addEventListener('play', () => {
             resumeSharedContext();
@@ -341,18 +401,48 @@
             applyToMediaElement(el);
         }, { passive: true });
 
-        el.addEventListener('volumechange', () => {
-            if (effectiveGain() <= 1.0 && !state.muted && el.volume > 0) {
-                mediaBaseVolumes.set(el, el.volume);
-            }
-        }, { passive: true });
+        if (!volumeAccessorHooked) {
+            // only used if the volume getter couldn't be hooked
+            el.addEventListener('volumechange', () => {
+                const native = readNativeVolume(el);
+                const base = getBaseVolume(el);
+                const route = mediaRoutes.get(el);
+                const expected = route ? base : base * Math.min(effectiveGain(), 1.0);
+                if (Math.abs(native - expected) > 1e-4) {
+                    mediaBaseVolumes.set(el, native);
+                    applyToMediaElement(el);
+                }
+            }, { passive: true });
+        }
 
         applyToMediaElement(el);
     }
 
-    /**
-     * Deep Recursive Media Element Finder (Pierces Shadow DOM!)
-     */
+    // page reads/writes its own volume. without this our writes get treated as page changes
+    // and lowering compounds every time.
+    if (MediaProto && nativeVolumeGet && nativeVolumeSet && nativeVolumeDesc.configurable) {
+        try {
+            Object.defineProperty(MediaProto, 'volume', {
+                configurable: true,
+                enumerable: nativeVolumeDesc.enumerable,
+                get() {
+                    if (mediaBaseVolumes.has(this)) return mediaBaseVolumes.get(this);
+                    return nativeVolumeGet.call(this);
+                },
+                set(value) {
+                    nativeVolumeSet.call(this, value);
+                    mediaBaseVolumes.set(this, nativeVolumeGet.call(this));
+                    if (trackedMediaElements.has(this)) {
+                        applyToMediaElement(this);
+                    }
+                }
+            });
+            volumeAccessorHooked = true;
+        } catch (e) {
+            log('Could not hook HTMLMediaElement.volume:', e);
+        }
+    }
+
     function findMediaElements(root = document, found = new Set()) {
         if (!root) return found;
         try {
@@ -368,11 +458,6 @@
         return found;
     }
 
-    /**
-     * Hook HTMLMediaElement.prototype.play:
-     * Guarantees that ANY video or audio that begins playback on Reddit or anywhere
-     * is instantly caught and tracked, even inside Shadow DOM or custom Web Components!
-     */
     if (nativePlay) {
         window.HTMLMediaElement.prototype.play = function() {
             try {
@@ -383,11 +468,6 @@
         };
     }
 
-    /**
-     * Hook Element.prototype.attachShadow:
-     * When Web Components (like Reddit's <shreddit-player>) create shadow roots,
-     * immediately observe and scan them for media elements!
-     */
     if (nativeAttachShadow) {
         Element.prototype.attachShadow = function() {
             const shadowRoot = nativeAttachShadow.apply(this, arguments);
@@ -412,9 +492,6 @@
         };
     }
 
-    /**
-     * Hook Document.prototype.createElement for dynamically created audio/video elements
-     */
     if (nativeCreateElement) {
         window.Document.prototype.createElement = function(tagName) {
             const el = nativeCreateElement.apply(this, arguments);
@@ -428,10 +505,8 @@
         };
     }
 
-    // Scan initial DOM and Shadow DOMs
     findMediaElements(document).forEach(trackMedia);
 
-    // Observe document mutations
     const observer = new MutationObserver(mutations => {
         for (const mut of mutations) {
             for (const node of mut.addedNodes) {
@@ -459,17 +534,19 @@
         document.addEventListener('DOMContentLoaded', startObserving, { once: true });
     }
 
-    // Periodic sweep every 2 seconds for infinitely scrolling feeds (Reddit feed, etc.)
+    // catch players that show up late (reddit feed etc). skip the walk while we're at 100%.
     setInterval(() => {
+        for (const el of trackedMediaElements) {
+            if (!el.isConnected && el.paused) trackedMediaElements.delete(el);
+        }
+        if (isDefaultState()) return;
         findMediaElements(document).forEach(trackMedia);
     }, 2000);
 
-    // User gesture listeners to resume AudioContext cleanly
     ['pointerdown', 'keydown', 'click'].forEach(evt => {
         document.addEventListener(evt, resumeSharedContext, { passive: true, capture: true });
     });
 
-    // Bridge with content script
     window.addEventListener('message', event => {
         if (event.source !== window) return;
         const data = event.data;
@@ -508,5 +585,5 @@
         }
     });
 
-    log('VolumeFox MAIN world audio hook initialized with Shadow DOM & Web Component support');
+    log('hook installed');
 })();

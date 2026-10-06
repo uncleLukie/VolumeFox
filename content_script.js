@@ -1,8 +1,4 @@
-/**
- * VolumeFox - Content Script (Isolated World)
- * Runs at document_start in all frames.
- * Relays messages between popup/background and the MAIN world page_audio_hook.
- */
+// relays messages between the extension and the page hook
 (function() {
     'use strict';
 
@@ -15,7 +11,6 @@
     let currentVolume = 100;
     let currentMuted = false;
 
-    // Cross-browser runtime API wrapper
     const api = typeof browser !== 'undefined' ? browser : chrome;
 
     function postToPage(action, payload = {}) {
@@ -31,7 +26,6 @@
         }
     }
 
-    // Sync volume to page hook
     function syncToPage() {
         postToPage('setVolume', {
             volume: currentVolume,
@@ -39,7 +33,6 @@
         });
     }
 
-    // Listen for replies from page_audio_hook.js
     window.addEventListener('message', event => {
         if (event.source !== window) return;
         const data = event.data;
@@ -51,7 +44,6 @@
         }
     });
 
-    // Listen for extension messages (from popup or background)
     api.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!message || !message.action) return false;
 
@@ -103,19 +95,18 @@
         return false;
     });
 
-    // Ask background for the active tab's stored volume on initial load
     try {
-        api.runtime.sendMessage({ action: 'getTabInitialState' }, response => {
-            if (api.runtime.lastError) return;
-            if (response && typeof response.volume === 'number') {
-                currentVolume = response.volume;
-                currentMuted = !!response.muted;
-                syncToPage();
-            }
-        });
+        Promise.resolve(api.runtime.sendMessage({ action: 'getTabInitialState' }))
+            .then(response => {
+                if (response && typeof response.volume === 'number') {
+                    currentVolume = response.volume;
+                    currentMuted = !!response.muted;
+                    syncToPage();
+                }
+            })
+            .catch(() => {});
     } catch (_) {}
 
-    // Resync once DOM is interactive / loaded
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', syncToPage, { once: true });
     } else {

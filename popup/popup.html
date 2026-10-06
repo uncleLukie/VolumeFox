@@ -8,13 +8,12 @@
 </head>
 <body class="dark">
 <div class="app-container">
-    <!-- Header -->
     <header class="app-header">
         <div class="brand">
             <img src="../icons/volume48.png" class="brand-logo" alt="VolumeFox logo">
             <div>
                 <h1 class="brand-title">VolumeFox</h1>
-                <span class="brand-version">v3.0</span>
+                <span id="brandVersion" class="brand-version">v3.1</span>
             </div>
         </div>
         <div class="header-actions">
@@ -27,7 +26,14 @@
         </div>
     </header>
 
-    <!-- Main Volume Display -->
+    <div id="pageNotice" class="page-notice" hidden></div>
+
+    <div id="controllingBar" class="controlling-bar" hidden>
+        <span class="controlling-label">Controlling</span>
+        <span id="controllingTitle" class="controlling-title"></span>
+        <button id="controllingReset" class="controlling-reset" type="button">this tab</button>
+    </div>
+
     <main class="volume-card">
         <div class="display-container">
             <div class="volume-value-wrapper">
@@ -40,7 +46,6 @@
             </div>
         </div>
 
-        <!-- Slider Control -->
         <div class="slider-wrapper">
             <input type="range" id="volumeSlider" min="0" max="600" step="1" value="100" aria-label="Volume Slider">
             <div class="slider-ticks">
@@ -51,7 +56,6 @@
             </div>
         </div>
 
-        <!-- Preset Buttons -->
         <div class="presets-container" id="presetPills">
             <button class="preset-pill" data-volume="100">100%</button>
             <button class="preset-pill" data-volume="200">200%</button>
@@ -62,7 +66,6 @@
         </div>
     </main>
 
-    <!-- Tabs Playing Audio Section -->
     <section class="audible-section">
         <div class="section-header">
             <div class="section-title">
@@ -75,9 +78,9 @@
         </ul>
     </section>
 
-    <!-- Footer -->
     <footer class="app-footer">
         <small>made by <a href="https://unclelukie.com" target="_blank" rel="noopener noreferrer">uncleLukie</a></small>
+        <small id="shortcutsWrap" hidden> &middot; <a href="#" id="shortcutsLink">keyboard shortcuts</a></small>
     </footer>
 </div>
 <script src="popup.js"></script>
